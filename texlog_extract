@@ -109,37 +109,36 @@ class String
    end
 end
 
-# - print a newline, if newline is true,
-# - print the message if not nil,
-# - then exit with the exitvalue
-def quit(mess=nil,exitvalue=0)
-   handle = exitvalue == 0 ? STDOUT : STDERR
-   handle.puts MYNAME+': '+(exitvalue > 0? mess.err : mess) if mess
+def quit(mess=nil,exitvalue=1)
+   puts (exitvalue > 0? mess.err : mess) if mess
    exit(exitvalue)
 end
 
 def handle_options
    ARGV.options do |opt|
-      opt.banner ="Usage: #{MYNAME} [options] file[.log]"
+      opt.banner="Usage: #{MYNAME} [options] file[.log]"
+      opt.summary_width=22
+      opt.summary_indent='  '
 
-      opt.on('-h'            ,	'print this help and exit') do
-         quit opt.help.gsub(/^.*—\n/,'')
+      opt.on('-h','print this help and exit') do
+         quit opt.to_a.delete_if { |x| x =~ /—$/},0
       end
-      opt.on(     '--help'   ,	'show full documentation and exit') do
-         quit Help
+      opt.on('--help','show full documentation and exit') do
+         quit Help,0
       end
-      opt.on('-V','--version',	'print version and exit') do
-         quit Version
+      opt.on('-V','--version','print version and exit') do
+         quit Version,0
       end
-      opt.on('-w','--web'    ,	'web colouring instead of ANSI') do
+      opt.on('-w','--web','web colouring instead of ANSI') do
          ''.setmodel(2)
       end
-      opt.on('-n','--nocolor',	'no colouring instead of ANSI')	do
+      opt.on('-n','--nocolor','no colouring instead of ANSI') do
          ''.setmodel(0)
       end
-      opt.on('-c','--config[-file]',String,
-      				'use file as config file, not',"#{@cf}",
-      				'with no argument: don´t read any config file') do |v|
+      opt.on('-c','--config[=file]',String,
+		  'use file as config file, not ~/.texlog_extract.',
+		  'with no argument: don´t read any config file'
+      ) do |v|
          @cf = v||''
       end
       opt.on('-I','—') do
@@ -147,7 +146,7 @@ def handle_options
          exit
       end
       opt.parse!
-   end or quit("Option parsing error")
+   end or exit 1
 end
 
 # extract a TeX log file, showing the most probable error in red and
@@ -350,18 +349,18 @@ warnings_to_skip = []
 handle_options
 
 unless @cf.empty?
-   File.exist?(@cf) or quit("Specified configuration file #{@cfopt} does not exist",1)
+   File.exist?(@cf) or quit("Specified configuration file #{@cfopt} does not exist")
 end
 
 if ARGV.size > 1
    i = @cf.empty? ? "\n\t\tIf you used the -c option, concatenate it with its argument" : ''
-   quit("Found #{ARGV.size} arguments (#{ARGV.join(", ")}) instead of one#{i}",1)
+   quit("Found #{ARGV.size} arguments (#{ARGV.join(", ")}) instead of one#{i}")
 end
 
 if ARGV[0] 
    file = ARGV[0].sub(/\.log$/,'')+'.log'
-   File.exist?(file)    or quit("file #{file} not found",1)
-   File.readable?(file) or quit("file #{file} not readable",1)
+   File.exist?(file)    or quit("file #{file} not found")
+   File.readable?(file) or quit("file #{file} not readable")
 else
    STDERR.puts "(reading from stdin)" 
    file = Tempfile.new("#{MYNAME}-").path
