@@ -3,9 +3,10 @@
 require 'optparse'
 require 'tempfile'
 require 'fileutils'
+require 'colorize'
 
 Version = '3.04'
- MYNAME = 'texlog_extract'
+ Myname = 'texlog_extract'
 
 Help=
 <<'DOC'
@@ -79,7 +80,7 @@ of /pdflatex/.
 	strings.
 
 = Author
-[Wybo Dekker](wybo@dekkerdocumenten.nl)
+[Wybo Dekker](wybodekker@me.com)
 
 = Copyright
 Released under the [GNU General Public License](www.gnu.org/copyleft/gpl.html)
@@ -109,43 +110,50 @@ class String
    end
 end
 
-def quit(mess=nil,exitvalue=1)
-   puts (exitvalue > 0? mess.err : mess) if mess
-   exit(exitvalue)
+def die(m)
+   STDERR.puts "#{Myname}: #{m}".red
+   exit 1
+end
+
+def help
+  system("echo \"#{Help}\" | less -P#{Myname}-#{Version.tr('.','·')}")
 end
 
 def handle_options
-   ARGV.options do |opt|
-      opt.banner="Usage: #{MYNAME} [options] file[.log]"
-      opt.summary_width=22
-      opt.summary_indent='  '
+   ARGV.options do |opts|
+      opts.banner="Usage: #{Myname} [options] file[.log]"
+      opts.summary_width=23
+      opts.summary_indent='  '
 
-      opt.on('-h','print this help and exit') do
-         quit opt.to_a.delete_if { |x| x =~ /—$/},0
+      opts.on('-h','print this help and exit') do
+         puts opts.to_a.delete_if { |x| x =~ /—$/}
+         exit
       end
-      opt.on('--help','show full documentation and exit') do
-         quit Help,0
+      opts.on('--help','show full documentation and exit') do
+         help
+         exit
       end
-      opt.on('-V','--version','print version and exit') do
-         quit Version,0
+      opts.on('-V','--version','print version and exit') do
+         puts Version
+         exit
       end
-      opt.on('-w','--web','web colouring instead of ANSI') do
+      opts.on('-w','--web','web colouring instead of ANSI') do
          ''.setmodel(2)
       end
-      opt.on('-n','--nocolor','no colouring instead of ANSI') do
+      opts.on('-n','--nocolor','no colouring instead of ANSI') do
          ''.setmodel(0)
       end
-      opt.on('-c','--config[=file]',String,
+      opts.on('-c','--config[=file]',String,
 		  'use file as config file, not ~/.texlog_extract.',
 		  'with no argument: don´t read any config file'
       ) do |v|
          @cf = v||''
       end
-      opt.on('-I','—') do
-         system("instscript #{MYNAME}")
+      opts.on('-I','—') do
+         system("instscript #{Myname}")
          exit
       end
-      opt.parse!
+      opts.parse!
    end or exit 1
 end
 
@@ -177,7 +185,7 @@ def texlog_extract(file,warnings_to_skip=[])
       if $1.to_i <= 5238
          maxlen = 80 # luatex has a bug
       else
-         quit("unknown version (#$1) of luatex; #{MYNAME} needs correction")
+         die("unknown version (#$1) of luatex; #{Myname} needs correction")
       end
    end
 
@@ -191,7 +199,7 @@ def texlog_extract(file,warnings_to_skip=[])
          # and replace them so that texlog_extract can go on:
          unless l.valid_encoding?
             l.encode!("utf-8",:invalid=>:replace)
-            STDERR.puts("invalid encoding (#{MYNAME} expects utf-8) in ".wrn, l)
+            STDERR.puts("invalid encoding (#{Myname} expects utf-8) in ".wrn, l)
          end
          log2[-1] << l
          break if l.size < maxlen
@@ -343,27 +351,27 @@ def texlog_extract(file,warnings_to_skip=[])
    return errorfile, linenum, (nerr == 0 && nwrn == 0) ? [] : message
 end # texlog_extract
 
-@cf = File.join(ENV['HOME'],'.'+MYNAME)+'.conf'
+@cf = File.join(ENV['HOME'],'.'+Myname)+'.conf'
 File.exist?(@cf) or @cf=''
 warnings_to_skip = []
 handle_options
 
 unless @cf.empty?
-   File.exist?(@cf) or quit("Specified configuration file #{@cfopt} does not exist")
+   File.exist?(@cf) or die("Specified configuration file #{@cfopt} does not exist")
 end
 
 if ARGV.size > 1
    i = @cf.empty? ? "\n\t\tIf you used the -c option, concatenate it with its argument" : ''
-   quit("Found #{ARGV.size} arguments (#{ARGV.join(", ")}) instead of one#{i}")
+   die("Found #{ARGV.size} arguments (#{ARGV.join(", ")}) instead of one#{i}")
 end
 
 if ARGV[0] 
    file = ARGV[0].sub(/\.log$/,'')+'.log'
-   File.exist?(file)    or quit("file #{file} not found")
-   File.readable?(file) or quit("file #{file} not readable")
+   File.exist?(file)    or die("file #{file} not found")
+   File.readable?(file) or die("file #{file} not readable")
 else
    STDERR.puts "(reading from stdin)" 
-   file = Tempfile.new("#{MYNAME}-").path
+   file = Tempfile.new("#{Myname}-").path
    open(file,'w') { |f| f.puts STDIN.readlines }
 end
 
